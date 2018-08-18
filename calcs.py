@@ -118,22 +118,7 @@ class Calculator:
             # check this case a(b+c)e, brackets are incorrect here, it should be something like
             # operator missing kind of error
 
-        def represent_as_tree(tokens, queue=[]):
-            # queue = tokens
-            # sub_expression = []
-            # in_brackets = []
-            # for token in queue:
-            #     if token == '(':
-            #         if queue[-1] == ')' and sub_expression:
-            #             open_br, close_br = token, queue.pop(-1)
-            #             # print('--',open_br,close_br)
-            #             in_brackets = represent_as_tree(queue)
-            #             sub_expression += [in_brackets,close_br]
-            #         # else:
-            #             # raise Exception('no closing bracket')
-            #     sub_expression.append(queue.pop(0))
-            #     print(sub_expression)
-            #     print(queue)
+        def represent_as_tree(tokens):
             priority_list = []
             bias = 0
             for pos, token in enumerate(tokens):
@@ -142,33 +127,28 @@ class Calculator:
                 elif token.ch == ')':
                     bias -= token.priority
                 elif token.priority > 0:
-                    priority_list.append((pos, token.priority + bias)) # to find node with highest priority
-            # print(priority_list)
+                    priority_list.append((pos, token.priority + bias)) # find node with highest priority
+
             order = sorted(priority_list, key = lambda x: x[1], reverse = True)
-            # print(order)
+
             if bias != 0:
-                print('Brackets are not balanced')
+                # brackets are not balanced
                 return False
+
             priority_tree = {}
             nodes_init_pos = {}
             prev_pos, prev_priority = None, None
             for pos, priority in order:
-                # print(pos, priority)
                 if prev_pos != None and prev_priority != None:
-                    # print(prev_pos, pos)
                     if abs(prev_pos - pos) <= 2 and prev_priority == priority:
                         # expand node
                         if prev_pos < pos:
                             pos_l, pos_r = pos + 0, pos + 2
                         elif prev_pos > pos:
                             pos_l, pos_r = pos - 1,pos + 1
-                        # print(priority_tree[priority][-1], '---')
-                        # print('--', [t.ch for t in tokens[pos_l: pos_r]])
-                        priority_tree[priority][-1] += [t.ch for t in tokens[pos_l: pos_r]]
-                        # print('expand')
+                        priority_tree[priority][-1] += [t for t in tokens[pos_l: pos_r]]
                     elif not priority_tree.get(priority):
                         # new key
-                        # print('new key')
                         nodes_init_pos[priority] = [pos]
                         if prev_pos < pos:
                             pos_l, pos_r = pos -1 , pos + 2
@@ -176,69 +156,127 @@ class Calculator:
                             pos_l, pos_r = pos - 1,pos + 2
                         pos_l = 0 if pos_l < 0 else pos_l
                         pos_r = len(tokens) if pos_l > len(tokens) else pos_r
-                        p = [t.ch for t in tokens[pos_l: pos_r]]
-                        # print(p)
-                        priority_tree[priority] = [p]
-                        # print(priority_tree[priority])
+                        priority_tree[priority] = [[t for t in tokens[pos_l: pos_r]]]
                     else:
                         # new node with same priority
                         nodes_init_pos[priority].append(pos)
                         pos_l = 0 if pos - 1 < 0 else pos - 1
                         pos_r = len(tokens) if pos + 2 > len(tokens) else pos + 2
-                        priority_tree[priority].append([t.ch for t in tokens[pos_l: pos_r]])
-                        # print('another node',pos_l,pos_r)
+                        priority_tree[priority].append([t for t in tokens[pos_l: pos_r]])
                     prev_pos = pos
                     prev_priority = priority
                 else:
                     # create initial node
-                    # print('init', prev_pos, prev_priority)
                     nodes_init_pos[priority] = [pos]
                     pos_l = 0 if pos - 1 < 0 else pos - 1
                     pos_r = len(tokens) if pos + 2 > len(tokens) else pos + 2
-                    priority_tree[priority] = [[t.ch for t in tokens[pos_l: pos_r]]]
+                    priority_tree[priority] = [[t for t in tokens[pos_l: pos_r]]]
                     prev_pos = pos
                     prev_priority = priority
 
             pr = sorted(set([o[1] for o in order]))[::-1]
-            print(pr)
+            # print(pr)
             prev_key = None
             higher_node_pos = []
-            for key in pr:
-                # print(priority_tree[key])
-                if prev_key != None:
-                    new_node = []
-                    higher_node_pos += nodes_init_pos[prev_key]
-                    higher_node_pos = sorted(higher_node_pos)
-                    node_pos = nodes_init_pos[key]
-                    n_higher_nodes = len(higher_node_pos)
-                    n_nodes = len(node_pos)
-                    length = n_nodes if n_nodes < n_higher_nodes else n_higher_nodes
-                    for i in range(length):
-                        higher_node_name = 'N{}_{}'.format(prev_key, i)
-                        print('ddd0', higher_node_pos,  node_pos)
-                        if higher_node_pos[i] < node_pos[i]:
-                            new_node = new_node[:len(new_node) - 1] + [str(higher_node_name)] + priority_tree[key][i][1::]
-                        elif higher_node_pos[i] > node_pos[i]:
-                            new_node = new_node[:len(new_node) - 1] + priority_tree[key][i][0:len(priority_tree[key][i])-1] + [str(higher_node_name)]
-                    if n_higher_nodes > n_nodes:
-                        i = length + 1
-                        higher_node_name = 'N{}_{}'.format(prev_key, i)
-                        new_node = new_node[:len(new_node) - 1] + [str(higher_node_name)]
-                    if n_higher_nodes < n_nodes:
-                        i = length + 1
-                        new_node += priority_tree[key][-1][1:]
+            # for key in pr:
+            #     # print(priority_tree[key])
+            #     if prev_key != None:
+            #         new_node = []
+            #         higher_node_pos += nodes_init_pos[prev_key]
+            #         higher_node_pos = sorted(higher_node_pos)
+            #         node_pos = nodes_init_pos[key]
+            #         n_higher_nodes = len(higher_node_pos)
+            #         n_nodes = len(node_pos)
+            #         length = n_nodes if n_nodes < n_higher_nodes else n_higher_nodes
+            #         hn_ctr = 0
+            #         n_ctr = 0
+            #         while True:
+            #             if hn_ctr == length or n_ctr == length:
+            #                 break
+            #             higher_node_name = 'N{}_{}'.format(prev_key, hn_ctr)
+            #             if higher_node_pos[hn_ctr] < node_pos[n_ctr]:
+            #                 new_node = new_node[:len(new_node) - 1] + [str(higher_node_name)] + priority_tree[key][n_ctr][1::]
+            #                 hn_ctr += 1
+            #                 n_ctr += 1
+            #             elif higher_node_pos[hn_ctr] > node_pos[n_ctr]:
+            #                 new_node = new_node[:len(new_node) - 1] + priority_tree[key][n_ctr][0:len(priority_tree[key][n_ctr])-1] + [str(higher_node_name)]
+            #                 n_ctr += 1
+            #         print(higher_node_pos, '--' , node_pos)
 
-                    print(new_node,'----')
-                    prev_key = key
+            #         print(higher_node_pos[hn_ctr], '--' , node_pos[n_ctr - 1])
+            #         if n_higher_nodes > n_nodes and higher_node_pos[hn_ctr] > node_pos[n_ctr - 1]:
+            #             hn_ctr = length + 1
+            #             higher_node_name = 'N{}_{}'.format(prev_key, hn_ctr)
+            #             new_node = new_node[:len(new_node) - 1] + [str(higher_node_name)]
+            #         if n_higher_nodes < n_nodes:
+            #             n_ctr = length + 1
+            #             new_node += priority_tree[key][-1][1:]
+
+            #         print(new_node)
+            #         prev_key = key
+            #     else:
+            #         prev_key = key
+            #         print(priority_tree[key])
+            # print(nodes_init_pos)
+            return priority_tree
+
+        def check_unary_operators(tokens: list) -> bool:
+            prev_priority = None
+            if tokens[-1].priority == 1:
+                # unary operation can not end with +/-
+                return False
+            for token in tokens:
+                if prev_priority != None:
+                    if token.priority != prev_priority:
+                        pass
+                    else:
+                        return False
+                    prev_priority = token.priority
                 else:
-                    prev_key = key
-                    print(priority_tree[key])
-            print(nodes_init_pos)
-            return order
+                    prev_priority = token.priority
+            return True
+
+        def check_binary_operators(tokens: list) -> bool:
+            prev_priority = None
+            prev_token = None
+            if tokens[-1].priority not in (0,4):
+                return False
+            if tokens[0].priority not in (0,4):
+                return False
+            for token in tokens:
+                if prev_priority != None:
+                    if prev_token.ch == '/' and token.ch == 0:
+                        return False
+                    if token.priority != prev_priority:
+                        pass
+                    else:
+                        return False
+                    prev_priority = token.priority
+                    prev_token = token
+                else:
+                    prev_priority = token.priority
+                    prev_token = token
+            return True
 
         tokens = tokenize(self.opcodes)
-        print([i.ch for i in tokens])
-        print(represent_as_tree(tokens))
+        # print(check_binary_operators(tokens))
+        # print([i.ch for i in tokens])
+        tree = represent_as_tree(tokens)
+        results = []
+        if not tree:
+            return False
+        for key in tree.keys():
+            nodes = tree[key]
+            for node in nodes:
+                operation_priority = max(node[0].priority, node[1].priority)
+                if operation_priority == 1:
+                    if not check_unary_operators(node):
+                        return False
+                else:
+                    if not check_binary_operators(node):
+                        return False
+        return True
+
 
 
 
@@ -261,6 +299,8 @@ def validate_test():
         ('a^+b', False),
         ('a^b', True),
         ('^-b', False),
+        ('+b/(0+0)', True),
+        ('+b/(0)', False), # should this case be considered as False?
         ]
 
     for case, exp in validate_check_list:
@@ -299,8 +339,11 @@ def str_test():
         if str(calc) != exp:
             print('Error in case for "{}". Actual "{}", expected {}'.format(case, calc, exp))
 
-# validate_test()
-# str_test()
+validate_test()
+str_test()
 
-calc = Calculator('-a+(2+(3+5*4+9))+1').validate()
-# calc = Calculator('k*10-a+2*2+(0*2)+1').validate()
+# calc = Calculator('-a+(2+(3+5*4+9))+1').validate()
+# calc = Calculator('-a+((2+1)+(3+9))+1').validate()
+# calc = Calculator('-(a+1)^1+(1+1)').validate()
+# calc = Calculator('s^s').validate()
+# calc = Calculator('k*10-a+2*2+(0*2)+1*2').validate()
