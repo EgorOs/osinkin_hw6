@@ -2,11 +2,148 @@
 from enum import Enum
 from string import ascii_lowercase
 
+class Token:
+    def __init__(self, ch):
+        self.ch = ch
+        if ch == '+' or ch == '-':
+            self.priority = 1
+        elif ch == '*' or ch == '/':
+            self.priority = 2
+        elif ch == '^':
+            self.priority = 3
+        elif ch == '(' or ch == ')':
+            self.priority = 4
+        else:
+            self.priority = 0
+        # self.pos = None
+        # self.value = None
+        # self.kind = None
+
+def tokenize(expression):
+    characters = list(expression)
+    digits_token = None
+    tokens = []
+    while characters:
+        ch = characters.pop(0)
+        if ch.isdigit():
+            if digits_token is not None:
+                digits_token = digits_token * 10 + int(ch)
+            else:
+                digits_token = int(ch)
+        else:
+            if digits_token is not None:
+                tokens.append(Token(digits_token))
+            tokens.append(Token(ch))
+            digits_token = None
+    if digits_token is not None:
+        tokens.append(Token(digits_token))
+    return tokens
+
+def represent_as_tree(tokens: list) -> dict:
+    priority_list = []
+    bias = 0
+    for pos, token in enumerate(tokens):
+        if token.ch == '(':
+            bias += token.priority
+        elif token.ch == ')':
+            bias -= token.priority
+        elif token.priority > 0:
+            # find node with highest priority
+            priority_list.append((pos, token.priority + bias))
+
+    order = sorted(priority_list, key=lambda x: x[1], reverse=True)
+
+    if bias != 0:
+        # brackets are not balanced
+        return {}
+
+    priority_tree = {}
+    nodes_init_pos = {}
+    prev_pos, prev_priority = None, None
+    for pos, priority in order:
+        if prev_pos is not None and prev_priority is not None:
+            if abs(prev_pos - pos) <= 2 and prev_priority == priority:
+                # expand node
+                if prev_pos < pos:
+                    pos_l, pos_r = pos + 0, pos + 2
+                else:
+                    pos_l, pos_r = pos - 1, pos + 1
+                priority_tree[priority][-1] += [t for t in
+                                                tokens[pos_l: pos_r]]
+            elif not priority_tree.get(priority):
+                # new key
+                nodes_init_pos[priority] = [pos]
+                if prev_pos < pos:
+                    pos_l, pos_r = pos - 1, pos + 2
+                else:
+                    pos_l, pos_r = pos - 1, pos + 2
+                pos_l = 0 if pos_l < 0 else pos_l
+                pos_r = len(tokens) if pos_l > len(tokens) else pos_r
+                priority_tree[priority] = [
+                    [t for t in tokens[pos_l: pos_r]]]
+            else:
+                # new node with same priority
+                nodes_init_pos[priority].append(pos)
+                pos_l = 0 if pos - 1 < 0 else pos - 1
+                pos_r = len(tokens) if pos + 2 > len(
+                    tokens) else pos + 2
+                priority_tree[priority].append(
+                    [t for t in tokens[pos_l: pos_r]])
+            prev_pos = pos
+            prev_priority = priority
+        else:
+            # create initial node
+            nodes_init_pos[priority] = [pos]
+            pos_l = 0 if pos - 1 < 0 else pos - 1
+            pos_r = len(tokens) if pos + 2 > len(tokens) else pos + 2
+            priority_tree[priority] = [
+                [t for t in tokens[pos_l: pos_r]]]
+            prev_pos = pos
+            prev_priority = priority
+    return priority_tree
 
 class Calculator:
+
+    class TokenListDescriptor:
+        def __init__(self, name):
+            self.name = name
+
+        def __get__(self, instance, owner):
+            return getattr(instance, self.name, self)
+
+        def __set__(self, instance, expression):
+
+
+            # if isinstance(expression[0], Token):
+            #     new_tokens = expression
+            # else:
+            #     new_tokens = tokenize(expression)
+
+            setattr(instance, self.name, tokenize(expression))
+
+    class CalcTreeDescriptor:
+        def __init__(self, name):
+            self.name = name
+
+        def __get__(self, instance, owner):
+            return getattr(instance, self.name, self)
+
+        def __set__(self, instance, tokens):
+
+            setattr(instance, self.name, represent_as_tree(tokens))
+    
+
+    # Tokens and tree are calculated each time new value is set
+    tokens = TokenListDescriptor('__tokens')
+    tree = CalcTreeDescriptor('__tree')
+
+
     def __init__(self, opcodes: list, operators=None):
         self.opcodes = opcodes
         self.operators = operators if operators is not None else []
+        self.tokens = opcodes
+        self.tree = self.tokens
+
 
     def __str__(self) -> str:
 
@@ -36,13 +173,16 @@ class Calculator:
             LEFT_BRACKET = {'|': 5, '-': 1, '+': 1, '*': 1, '^': 1, '/': 1,
                             '(': 1, ')': 3}
 
+
         opcodes = self.opcodes + ['|']
+        if opcodes[0] == '+':
+            opcodes.pop(0)
         lst_postfix = []
         stack = ['|']
         pos = 0
         while True:
             sym = opcodes[pos]
-            if sym in set(ascii_lowercase):
+            if sym in set(ascii_lowercase) or sym.isdigit():
                 lst_postfix.append(sym)
                 pos += 1
             else:
@@ -63,109 +203,16 @@ class Calculator:
                     raise Exception('invalid input string')
         return ''.join(lst_postfix)
 
+
     def optimise(self):
         for operator in self.operators:
+            # Updating tokens and tree
             self.opcodes = operator.process(self.opcodes)
+            self.tokens = self.opcodes
+            self.tree = self.tokens
+
 
     def validate(self) -> bool:
-        class Token:
-            def __init__(self, ch):
-                self.ch = ch
-                if ch == '+' or ch == '-':
-                    self.priority = 1
-                elif ch == '*' or ch == '/':
-                    self.priority = 2
-                elif ch == '^':
-                    self.priority = 3
-                elif ch == '(' or ch == ')':
-                    self.priority = 4
-                else:
-                    self.priority = 0
-
-        def tokenize(expression: list) -> list:
-            characters = list(expression)
-            digits_token = None
-            tokens = []
-            while characters:
-                ch = characters.pop(0)
-                if ch.isdigit():
-                    if digits_token is not None:
-                        digits_token = digits_token * 10 + int(ch)
-                    else:
-                        digits_token = int(ch)
-                # elif for floats? 1.337?
-                else:
-                    if digits_token is not None:
-                        tokens.append(Token(digits_token))
-                    tokens.append(Token(ch))
-                    digits_token = None
-            if digits_token is not None:
-                tokens.append(Token(digits_token))
-            return tokens
-
-        def represent_as_tree(tokens: list) -> dict:
-            priority_list = []
-            bias = 0
-            for pos, token in enumerate(tokens):
-                if token.ch == '(':
-                    bias += token.priority
-                elif token.ch == ')':
-                    bias -= token.priority
-                elif token.priority > 0:
-                    # find node with highest priority
-                    priority_list.append((pos, token.priority + bias))
-
-            order = sorted(priority_list, key=lambda x: x[1], reverse=True)
-
-            if bias != 0:
-                # brackets are not balanced
-                return {}
-
-            priority_tree = {}
-            nodes_init_pos = {}
-            prev_pos, prev_priority = None, None
-            for pos, priority in order:
-                if prev_pos is not None and prev_priority is not None:
-                    if abs(prev_pos - pos) <= 2 and prev_priority == priority:
-                        # expand node
-                        if prev_pos < pos:
-                            pos_l, pos_r = pos + 0, pos + 2
-                        else:
-                            pos_l, pos_r = pos - 1, pos + 1
-                        priority_tree[priority][-1] += [t for t in
-                                                        tokens[pos_l: pos_r]]
-                    elif not priority_tree.get(priority):
-                        # new key
-                        nodes_init_pos[priority] = [pos]
-                        if prev_pos < pos:
-                            pos_l, pos_r = pos - 1, pos + 2
-                        else:
-                            pos_l, pos_r = pos - 1, pos + 2
-                        pos_l = 0 if pos_l < 0 else pos_l
-                        pos_r = len(tokens) if pos_l > len(tokens) else pos_r
-                        priority_tree[priority] = [
-                            [t for t in tokens[pos_l: pos_r]]]
-                    else:
-                        # new node with same priority
-                        nodes_init_pos[priority].append(pos)
-                        pos_l = 0 if pos - 1 < 0 else pos - 1
-                        pos_r = len(tokens) if pos + 2 > len(
-                            tokens) else pos + 2
-                        priority_tree[priority].append(
-                            [t for t in tokens[pos_l: pos_r]])
-                    prev_pos = pos
-                    prev_priority = priority
-                else:
-                    # create initial node
-                    nodes_init_pos[priority] = [pos]
-                    pos_l = 0 if pos - 1 < 0 else pos - 1
-                    pos_r = len(tokens) if pos + 2 > len(tokens) else pos + 2
-                    priority_tree[priority] = [
-                        [t for t in tokens[pos_l: pos_r]]]
-                    prev_pos = pos
-                    prev_priority = priority
-
-            return priority_tree
 
         def check_unary_operators(tokens: list) -> bool:
             prev_priority = None
@@ -205,8 +252,8 @@ class Calculator:
                     prev_token = token
             return True
 
-        tokens = tokenize(self.opcodes)
-        tree = represent_as_tree(tokens)
+
+        tree = self.tree
         if not tree:
             return False
         for key in tree.keys():
@@ -290,3 +337,7 @@ str_test()
 # calc = Calculator('-(a+1)^1+(1+1)').validate()
 # calc = Calculator('s^s').validate()
 # calc = Calculator('k*10-a+2*2+(0*2)+1*2').validate()
+# calc = Calculator('((a+3))')
+# print(calc.tree)
+# calc.validate()
+# print(calc.priority_tree)
