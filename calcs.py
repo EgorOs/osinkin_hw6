@@ -23,6 +23,7 @@ def tokenize(expression):
     characters = list(expression)
     digits_token = None
     tokens = []
+    pos = 0
     while characters:
         ch = characters.pop(0)
         if ch.isdigit():
@@ -32,11 +33,21 @@ def tokenize(expression):
                 digits_token = int(ch)
         else:
             if digits_token is not None:
-                tokens.append(Token(digits_token))
-            tokens.append(Token(ch))
+                new_token = Token(digits_token)
+                new_token.pos = pos
+                tokens.append(new_token)
+                pos += 1
+            new_token = Token(ch)
+            new_token.pos = pos
+            tokens.append(new_token)
             digits_token = None
+            pos += 1
+
     if digits_token is not None:
-        tokens.append(Token(digits_token))
+        new_token = Token(digits_token)
+        new_token.pos = pos
+        tokens.append(new_token)
+        pos += 1
     return tokens
 
 def represent_as_tree(tokens: list) -> dict:
@@ -102,6 +113,64 @@ def represent_as_tree(tokens: list) -> dict:
             prev_priority = priority
     return priority_tree
 
+def to_postfix(opcodes):
+    class Symbol(Enum):
+        BREAK_SIGN = '|'
+        MUL_SIGN = '*'
+        DIV_SIGN = '/'
+        PLUS_SIGN = '+'
+        MINUS_SIGN = '-'
+        LEFT_BRACKET = '('
+        RIGHT_BRACKET = ')'
+        POWER_SIGN = '^'
+
+    class Action(Enum):
+        BREAK_SIGN = {'|': 4, '-': 1, '+': 1, '*': 1, '^': 1, '/': 1,
+                      '(': 1, ')': 5}
+        PLUS_SIGN = {'|': 2, '-': 2, '+': 2, '*': 1, '^': 1, '/': 1,
+                     '(': 1, ')': 2}
+        MINUS_SIGN = {'|': 2, '-': 2, '+': 2, '*': 1, '^': 1, '/': 1,
+                      '(': 1, ')': 2}
+        MUL_SIGN = {'|': 2, '-': 2, '+': 2, '*': 2, '^': 1, '/': 2, '(': 1,
+                    ')': 2}
+        POWER_SIGN = {'|': 2, '-': 2, '+': 2, '*': 2, '^': 1, '/': 2,
+                      '(': 1, ')': 2}
+        DIV_SIGN = {'|': 2, '-': 2, '+': 2, '*': 2, '^': 2, '/': 2, '(': 1,
+                    ')': 2}
+        LEFT_BRACKET = {'|': 5, '-': 1, '+': 1, '*': 1, '^': 1, '/': 1,
+                        '(': 1, ')': 3}
+
+
+    opcodes = opcodes + ['|']
+    if opcodes[0] == '+':
+        opcodes.pop(0)
+    lst_postfix = []
+    stack = ['|']
+    pos = 0
+    while True:
+        sym = opcodes[pos]
+        if sym in set(ascii_lowercase) or sym.isdigit():
+            lst_postfix.append(sym)
+            pos += 1
+        else:
+            LAST_SIGN = Symbol(stack[-1]).name
+            action_choice = Action[LAST_SIGN].value[sym]
+            if action_choice == 1:
+                stack.append(sym)
+                pos += 1
+            elif action_choice == 2:
+                last = stack.pop(-1)
+                lst_postfix.append(last)
+            elif action_choice == 3:
+                stack.pop(-1)
+                pos += 1
+            elif action_choice == 4:
+                break
+            else:
+                raise Exception('invalid input string')
+    return lst_postfix
+
+
 class Calculator:
 
     class TokenListDescriptor:
@@ -147,60 +216,7 @@ class Calculator:
 
     def __str__(self) -> str:
 
-        class Symbol(Enum):
-            BREAK_SIGN = '|'
-            MUL_SIGN = '*'
-            DIV_SIGN = '/'
-            PLUS_SIGN = '+'
-            MINUS_SIGN = '-'
-            LEFT_BRACKET = '('
-            RIGHT_BRACKET = ')'
-            POWER_SIGN = '^'
-
-        class Action(Enum):
-            BREAK_SIGN = {'|': 4, '-': 1, '+': 1, '*': 1, '^': 1, '/': 1,
-                          '(': 1, ')': 5}
-            PLUS_SIGN = {'|': 2, '-': 2, '+': 2, '*': 1, '^': 1, '/': 1,
-                         '(': 1, ')': 2}
-            MINUS_SIGN = {'|': 2, '-': 2, '+': 2, '*': 1, '^': 1, '/': 1,
-                          '(': 1, ')': 2}
-            MUL_SIGN = {'|': 2, '-': 2, '+': 2, '*': 2, '^': 1, '/': 2, '(': 1,
-                        ')': 2}
-            POWER_SIGN = {'|': 2, '-': 2, '+': 2, '*': 2, '^': 1, '/': 2,
-                          '(': 1, ')': 2}
-            DIV_SIGN = {'|': 2, '-': 2, '+': 2, '*': 2, '^': 2, '/': 2, '(': 1,
-                        ')': 2}
-            LEFT_BRACKET = {'|': 5, '-': 1, '+': 1, '*': 1, '^': 1, '/': 1,
-                            '(': 1, ')': 3}
-
-
-        opcodes = self.opcodes + ['|']
-        if opcodes[0] == '+':
-            opcodes.pop(0)
-        lst_postfix = []
-        stack = ['|']
-        pos = 0
-        while True:
-            sym = opcodes[pos]
-            if sym in set(ascii_lowercase) or sym.isdigit():
-                lst_postfix.append(sym)
-                pos += 1
-            else:
-                LAST_SIGN = Symbol(stack[-1]).name
-                action_choice = Action[LAST_SIGN].value[sym]
-                if action_choice == 1:
-                    stack.append(sym)
-                    pos += 1
-                elif action_choice == 2:
-                    last = stack.pop(-1)
-                    lst_postfix.append(last)
-                elif action_choice == 3:
-                    stack.pop(-1)
-                    pos += 1
-                elif action_choice == 4:
-                    break
-                else:
-                    raise Exception('invalid input string')
+        lst_postfix = to_postfix(self.opcodes)
         return ''.join(lst_postfix)
 
 
