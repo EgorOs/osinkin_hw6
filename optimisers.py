@@ -198,13 +198,20 @@ class IntegerCostantsOptimiser(AbstractOptimiser):
 
             while True:
                 try:
-                    values = opcodes[pos:pos+3]
+                    values = opcodes[pos:pos+4]
                     if values[0].isdigit() and values[1].isdigit() and values[2] in '+-*/^':
-                        new_val = calculate(values)
+                        new_val = calculate(values[:3])
                         opcodes = opcodes[:pos] + [new_val] + opcodes[pos+3::]
                         result = opcodes
+                    elif values[0].isdigit() and not values[1].isdigit() and values[2].isdigit() and values[3] in '+-*/^':
+                        new_val = calculate((values[0], values[2], values[3]))
+                        opcodes = opcodes[:pos+2] + [new_val] + opcodes[pos+4::]
+                        del opcodes[pos]
+                        pos -= 1
+                        result = opcodes            
                     pos += 1
                 except Exception as e:
+                    # raise e
                     pos += 1
                 ctr -= 1
                 if ctr == 0: break
@@ -298,8 +305,10 @@ def test_simplifier_optimiser():
                   .format(case, calc, exp))
 
 
-test_double_negetive()
-test_integer_constant_optimiser()
-# calc = Calculator('2*3', [IntegerCostantsOptimiser()])
-# calc.optimise()
-# print(str(calc))
+# test_double_negetive()
+# test_integer_constant_optimiser()
+calc = Calculator('a+2-2', [IntegerCostantsOptimiser()])
+calc.optimise()
+print(str(calc))
+calc.optimise()
+print(str(calc))
