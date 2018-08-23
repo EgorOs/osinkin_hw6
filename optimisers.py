@@ -151,13 +151,17 @@ class IntegerCostantsOptimiser(AbstractOptimiser):
         for key in priority_lst:
             branch = tree[key]
             for node in branch:
+                # print([i.ch for i in node])
                 if not prev_key:
+                    # if there is no nodes with higher priority
+                    # check if there is variable in this node
                     if [t.ch for t in node if t.ch in set(ascii_lowercase)]:
                         # put variables to the start or to the end of node,
                         # and calculate the rest
                         result = simplify_with_var(node)
                         result[0].calculable = False
                     else:
+                        # if no variable calculate the node
                         result = merge_tokens(*node, integer_devision=True)
                         result[0].calculable = True
                     pos, end_pos = result[0].pos, result[0].end_pos
@@ -171,32 +175,55 @@ class IntegerCostantsOptimiser(AbstractOptimiser):
                     left_sign = []
                     right_side = []
                     right_sign = []
+                    used = []
                     for limits in higher_nodes.keys():
                         pos, end_pos = limits
-                        if node_end_pos == pos:
+                        if node_end_pos <= pos:
                             tokens.pop(-1)  # remove outdated tokens
                             right_sign = [tokens.pop(-1)]
                             right_side = higher_nodes[limits]
+                            used.append(limits)
 
-                        if node_pos == end_pos:
+                        if node_pos >= end_pos:
                             tokens.pop(0)  # remove outdated tokens
                             left_sign = [tokens.pop(0)]
                             left_side = higher_nodes[limits]
+                            used.append(limits)
+                    for l in used:
+                        del higher_nodes[l]
 
-                    if not [t.ch for t in tokens]:
-                        if left_side and left_side[0].calculable:
+                    if not [t.ch for t in tokens if
+                            t.ch in set(ascii_lowercase)]:
+                        if left_side and not [t.ch for t in left_side if
+                                              t.ch in set(ascii_lowercase)]:
+                            # in left side doesn't contain variables
                             new_exp = left_side + left_sign + tokens
                             tokens = merge_tokens(*new_exp,
                                                   integer_devision=True)
                             left_side, left_sign = [], []
-                        if right_side and right_side[0].calculable:
+                        if right_side and not [t.ch for t in right_side if t.ch
+                                               in set(ascii_lowercase)]:
                             new_exp = tokens + right_sign + right_side
                             tokens = merge_tokens(*new_exp,
                                                   integer_devision=True)
                             right_side, right_sign = [], []
 
                     result += left_side + left_sign + tokens + right_sign + right_side
+                    pos = result[0].pos
 
+                    # calculate result
+                    priorities = len({i.priority for i in result})
+                    if priorities < 3:
+                        # if all signs have same priority P, for variables
+                        # P = 0 by default
+                        result = simplify_with_var(result)
+
+                    # expanding new node limits
+                    try:
+                        end_pos = result[-1].end_pos
+                    except AttributeError:
+                        end_pos = result[-1].pos
+                    higher_nodes[(pos, end_pos)] = result
             prev_key = key
 
         return result
@@ -292,8 +319,8 @@ def test_simplifier_optimiser():
 
 test_double_negetive()
 test_integer_constant_optimiser()
-calc = Calculator('2^3^a', [IntegerCostantsOptimiser()])
+# calc = Calculator('1+(2+2)*a*3', [IntegerCostantsOptimiser()])
 # calc = Calculator('9*a/3+10+3*3', [IntegerCostantsOptimiser()])
 # calc = Calculator('-9*a/4*3/e+d+2-2', [IntegerCostantsOptimiser()])
-calc.optimise()
-print(str(calc))
+# calc.optimise()
+# print(str(calc))

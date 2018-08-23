@@ -18,6 +18,7 @@ class Token:
         # self.pos = None
         # self.value = None
         # self.kind = None
+        self.calculable = False if self.ch in set(ascii_lowercase) else True
 
 def tokenize(expression):
     characters = list(expression)
@@ -125,20 +126,13 @@ def to_postfix(opcodes):
         POWER_SIGN = '^'
 
     class Action(Enum):
-        BREAK_SIGN = {'|': 4, '-': 1, '+': 1, '*': 1, '^': 1, '/': 1,
-                      '(': 1, ')': 5}
-        PLUS_SIGN = {'|': 2, '-': 2, '+': 2, '*': 1, '^': 1, '/': 1,
-                     '(': 1, ')': 2}
-        MINUS_SIGN = {'|': 2, '-': 2, '+': 2, '*': 1, '^': 1, '/': 1,
-                      '(': 1, ')': 2}
-        MUL_SIGN = {'|': 2, '-': 2, '+': 2, '*': 2, '^': 1, '/': 2, '(': 1,
-                    ')': 2}
-        POWER_SIGN = {'|': 2, '-': 2, '+': 2, '*': 2, '^': 1, '/': 2,
-                      '(': 1, ')': 2}
-        DIV_SIGN = {'|': 2, '-': 2, '+': 2, '*': 2, '^': 2, '/': 2, '(': 1,
-                    ')': 2}
-        LEFT_BRACKET = {'|': 5, '-': 1, '+': 1, '*': 1, '^': 1, '/': 1,
-                        '(': 1, ')': 3}
+        BREAK_SIGN =    {'|': 4, '-': 1, '+': 1, '*': 1, '^': 1, '/': 1, '(': 1, ')': 5}
+        PLUS_SIGN =     {'|': 2, '-': 2, '+': 2, '*': 1, '^': 1, '/': 1, '(': 1, ')': 2}
+        MINUS_SIGN =    {'|': 2, '-': 2, '+': 2, '*': 1, '^': 1, '/': 1, '(': 1, ')': 2}
+        MUL_SIGN =      {'|': 2, '-': 2, '+': 2, '*': 2, '^': 1, '/': 2, '(': 1, ')': 2}
+        POWER_SIGN =    {'|': 2, '-': 2, '+': 2, '*': 2, '^': 1, '/': 2, '(': 1, ')': 2}
+        DIV_SIGN =      {'|': 2, '-': 2, '+': 2, '*': 2, '^': 2, '/': 2, '(': 1, ')': 2}
+        LEFT_BRACKET =  {'|': 5, '-': 1, '+': 1, '*': 1, '^': 1, '/': 1, '(': 1, ')': 3}
 
 
     opcodes = opcodes + ['|']
@@ -345,8 +339,8 @@ def str_test():
                   .format(case, calc, exp))
 
 
-validate_test()
-str_test()
+# validate_test()
+# str_test()
 
 # calc = Calculator('-a+(2+(3+5*4+9))+1').validate()
 # calc = Calculator('-a+((2+1)+(3+9))+1').validate()
