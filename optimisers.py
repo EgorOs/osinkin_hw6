@@ -2,9 +2,10 @@
 from calcs import Calculator, Token, tokenize, represent_as_tree, to_postfix
 from string import ascii_lowercase
 
-def merge_tokens(*args):
+def merge_tokens(*args, integer_devision = False):
     new_token = Token('')
     new_token.pos = min([t.pos for t in args])
+    new_token.end_pos = max([t.pos for t in args])
     new_token.priority = 0
 
     ch_queue = [t.ch for t in args if t.priority == 0]
@@ -26,14 +27,50 @@ def merge_tokens(*args):
                 new_val *= val
             elif sign == '/':
                 new_val /= val
+                if integer_devision:
+                    new_val = round(new_val)
     else:
         new_val = ch_queue.pop(-1)
         for i in range(len(ch_queue)):
             new_val = ch_queue.pop(-1)**new_val
 
+    if new_val < 0:
+        print('CHANGE OF SIGN')
     new_token.ch = str(new_val)
     new_token.merged_len = merged_len
     return new_token
+
+def simplify_with_var(node):
+    pos = node[0].pos
+    end_pos = node[-1].pos
+    if len(node) > 4:
+        calculatble = []
+        uncalculatble = []
+        tokens = node.copy()
+        first_var = []
+        prev_token = None
+        if tokens[0].ch in set(ascii_lowercase):
+            first_var.append(tokens.pop(0))
+        for token in tokens:
+            if token.ch in set(ascii_lowercase):
+                uncalculatble.append(prev_token)
+                uncalculatble.append(token)
+            elif str(token.ch).isdigit():
+                if prev_token:
+                    calculatble.append(prev_token)
+                calculatble.append(token)
+            prev_token = token
+        uncalculatble = first_var + uncalculatble
+        calculatble = [merge_tokens(*calculatble, integer_devision=True)]
+        if uncalculatble[0].ch in set(ascii_lowercase):
+            result = uncalculatble + calculatble
+        else:
+            result = calculatble + uncalculatble
+    else:
+        result = node
+    result[0].pos = pos
+    result[0].end_pos = end_pos
+    return result
 
 def merge(s1, operator, s2):
     s1, s2 = int(s1), int(s2)
@@ -95,133 +132,92 @@ class DoubleNegativeOptimiser(AbstractOptimiser):
 class IntegerCostantsOptimiser(AbstractOptimiser):
         # a + 4*2 -> a + 8
         def process_internal(self, graph):
-            # tree = represent_as_tree(graph)
-            # priority_lst = sorted(tree.keys(), reverse=True)
-            # new_token_lst = []
-            # prev_priority = None
-            # for key in priority_lst:
-            #     branch = tree[key]
-            #     for node in branch:
-            #         print([i.ch for i in node])
-            #         new_token = merge_tokens(*node)
-            #         pos = new_token.pos
-            #         lenght = new_token.merged_len
-            #         del graph[pos:pos+lenght]
-            #     #     node_pos = node[0].pos
-            #     #     if new_token_lst and prev_priority:
-            #     #         print('new_token_lst', [i.ch for i in new_token_lst])
-            #     #         if new_token_lst[0].pos < node_pos:
-            #     #             node[0] = new_token_lst.pop(0)
-            #     #             print('here', node[0])
-            #     #         else:
-            #     #             node[-1] = new_token_lst.pop(0)
-            #     #     new_token = merge_tokens(*node)
-            #     #     print('new_token', new_token.ch)
-            #     #     new_token_lst.append(new_token)
-            #     #     new_token_lst = sorted(new_token_lst, key=lambda x: x.pos)
-            #     # prev_priority = key
-
-            #         print(new_token.ch)
-            opcodes = [str(t.ch) for t in graph]
-            opcodes = to_postfix(opcodes)
-
-
-            def calculate(opcodes):
-                stack = []
-                sign_priority = {'-':1, '+':1, '*':2, '/':2, '^':3}
-                prev_sign_priority = 1
-                for sym in opcodes:
-                    if sym in set(ascii_lowercase) or sym.isdigit():
-                        stack.append(sym)
-                    else:
-                        s1, s2 = stack.pop(-2), stack.pop(-1)
-                        if prev_sign_priority < sign_priority[sym]:
-                            # if len(s1) > 1 and '(' not in s1:
-                            #     s1 = '(' + s1 + ')'
-                            # if len(s2) > 1 and '(' not in s2:
-                            #     s2 = '(' + s2 + ')'
-                            if s1.isdigit() and s2.isdigit():
-                                stack.append(merge(s1, sym, s2))
-                            else:
-                                pass
+            print([t.ch for t in graph], 'original')
+            if len(graph) < 3:
+                return graph
+            tree = represent_as_tree(graph)
+            priority_lst = sorted(tree.keys(), reverse=True)
+            new_token_lst = []
+            prev_priority = None
+            prev_key = None
+            higher_nodes = {}
+            for key in priority_lst:
+                branch = tree[key]
+                for node in branch:
+                    print([i.ch for i in node], 'nodes', key)
+                    if not prev_key:
+                        if [t.ch for t in node if t.ch in set(ascii_lowercase)]:
+                            # put varibles to the start or to the end of node, and calculate the rest
+                            result = simplify_with_var(node)
+                            result[0].calculatble = False
                         else:
-                            stack.append(merge(s1, sym, s2))
-                        prev_sign_priority = sign_priority[sym]
-                return stack[0]
+                            result = [merge_tokens(*node, integer_devision=True)]
+                            result[0].calculatble = True
+                        pos, end_pos = result[0].pos, result[0].end_pos
+                        higher_nodes[(pos, end_pos)] = result
+                    else:
+                        print('limits', node[0].pos, node[-1].pos)
+                        tokens = node.copy()
+                        print(higher_nodes.keys(), 'keys')
+                        node_pos = tokens[0].pos
+                        node_end_pos = tokens[-1].pos
+                        result = []
+                        for limits in higher_nodes.keys():
+                            pos, end_pos = limits
+                            if node_end_pos == pos:
+                                print('LINKED RIGHT HIGHER NODE')
+                                tokens.pop(-1) # remove outdated tokens
+                                right_sign = [tokens.pop(-1)]
+                                print([t.ch for t in tokens])
+                                right_side = higher_nodes[limits]
 
-            # digits = [[]]
-            # letters = []
-            # first_char = None
-            # for ch in opcodes:
-            #     if not first_char:
-            #         first_char = ch
-            #     if ch in set(ascii_lowercase):
-            #         letters.append(ch)
-            #         if digits[-1]:
-            #             digits.append([])
-            #     else:
-            #         digits[-1].append(ch)
+                            if node_pos == end_pos:
+                                print('LINKED LEFT HIGHER NODE')
+                                tokens.pop(0) # remove outdated tokens
+                                left_sign = [tokens.pop(0)]
+                                print([t.ch for t in tokens])
+                                left_side = higher_nodes[limits]
+                        if left_side[0].calculatble:
+                            new_exp = left_side + left_sign + tokens
+                            tokens = [merge_tokens(*new_exp, integer_devision=True)]
+                            left_side, left_sign = [], []
+                        if right_side[0].calculatble:
+                            new_exp = tokens + right_sign + right_side
+                            print(new_exp, '-------')
+                            tokens = [merge_tokens(*new_exp, integer_devision=True)]
+                            right_side, right_sign = [], []
 
-            # new_digits = []
-            # # Calculating what possible
-            # for d in digits:
-            #     try:
-            #         new_digits.append(calculate(d))
-            #     except Exception:
-            #         new_digits += [d]
+                        print('right_side', right_side)
+                        print(left_side)
+                        result += left_side + left_sign + tokens + right_sign + right_side
+                        # result = result
+                        print([i.ch for i in result], 'wow')
+                    # print(i.ch for i in )
+                    print([i.ch for i in result], 'simplified, pos:', result[0].pos, ' - ', result[0].end_pos)
+                prev_key = key
 
-
-            # print(letters, 'letters')
-            # print(new_digits, 'new_digits')
-            # print(first_char)
-            # if first_char in letters:
-            #     new_opcodes = list(zip(letters,new_digits))
-            #     if len(new_digits) < len(letters):
-            #         new_opcodes += letters[-1]
-            # else:
-            #     new_opcodes = list(zip(new_digits, letters))
-            #     if len(new_digits) > len(letters):
-            #         new_opcodes.append(new_digits[-1])
-            ctr = len(opcodes)
-            pos = 0
-            # in case it is cannot be optimised
-            result = opcodes
-            if ctr == 3:
-                values = opcodes[pos:pos+3]
-                if values[0].isdigit() and values[1].isdigit() and values[2] in '+-*/^':
-                    result = calculate(values)
-                else:
-                    result = opcodes
-
-            if ctr < 3:
-                result = opcodes
-
-            while True:
-                try:
-                    values = opcodes[pos:pos+4]
-                    if values[0].isdigit() and values[1].isdigit() and values[2] in '+-*/^':
-                        new_val = calculate(values[:3])
-                        opcodes = opcodes[:pos] + [new_val] + opcodes[pos+3::]
-                        result = opcodes
-                    elif values[0].isdigit() and not values[1].isdigit() and values[2].isdigit() and values[3] in '+-*/^':
-                        new_val = calculate((values[0], values[2], values[3]))
-                        opcodes = opcodes[:pos+2] + [new_val] + opcodes[pos+4::]
-                        del opcodes[pos]
-                        pos -= 1
-                        result = opcodes            
-                    pos += 1
-                except Exception as e:
-                    # raise e
-                    pos += 1
-                ctr -= 1
-                if ctr == 0: break
+                    # new_token = merge_tokens(*node)
+                    # pos = new_token.pos
+                    # lenght = new_token.merged_len
+                    # del graph[pos:pos+lenght]
+                #     node_pos = node[0].pos
+                #     if new_token_lst and prev_priority:
+                #         print('new_token_lst', [i.ch for i in new_token_lst])
+                #         if new_token_lst[0].pos < node_pos:
+                #             node[0] = new_token_lst.pop(0)
+                #             print('here', node[0])
+                #         else:
+                #             node[-1] = new_token_lst.pop(0)
+                #     new_token = merge_tokens(*node)
+                #     print('new_token', new_token.ch)
+                #     new_token_lst.append(new_token)
+                #     new_token_lst = sorted(new_token_lst, key=lambda x: x.pos)
+                # prev_priority = key
             return result
 
         def post_process(self, result):
-            new_opcodes = []
-            # new_opcodes = str(result).replace('[','').replace(']','').replace('(','').replace(')','').replace("'",'').split(', ')
-            for expression in result:
-                new_opcodes += expression
+            new_opcodes = [str(i.ch) for i in result]
+            print('new_opcodes', new_opcodes)
             return new_opcodes
 
 
@@ -307,8 +303,8 @@ def test_simplifier_optimiser():
 
 # test_double_negetive()
 # test_integer_constant_optimiser()
-calc = Calculator('a+2-2', [IntegerCostantsOptimiser()])
-calc.optimise()
-print(str(calc))
+calc = Calculator('1-2', [IntegerCostantsOptimiser()])
+# calc = Calculator('9*a/3+10+3*3', [IntegerCostantsOptimiser()])
+# calc = Calculator('-9*a/4*3/e+d+2-2', [IntegerCostantsOptimiser()])
 calc.optimise()
 print(str(calc))
