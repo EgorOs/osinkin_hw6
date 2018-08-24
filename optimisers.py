@@ -67,8 +67,6 @@ def simplify_with_var(node):
             if token.ch in set(ascii_lowercase):
                 incalculable.append(prev_token)
                 incalculable.append(token)
-            # elif prev_token and prev_token.ch in set(ascii_lowercase):
-            #     incalculable.append(token)
             elif str(token.ch).isdigit():
                 if prev_token:
                     calculable.append(prev_token)
@@ -127,6 +125,7 @@ class DoubleNegativeOptimiser(AbstractOptimiser):
 
     def process_internal(self, graph):
         chars = [str(t.ch) for t in graph]
+
         def remove_double_minuses(chars):
             n = len(chars)
             new_opcodes = []
@@ -150,6 +149,7 @@ class DoubleNegativeOptimiser(AbstractOptimiser):
                     new_opcodes.append(chars[i])
                     i += 1
             return new_opcodes
+
         opt = remove_double_minuses(chars)
         new_opcodes = None
         while True:
@@ -170,14 +170,11 @@ class IntegerCostantsOptimiser(AbstractOptimiser):
             return graph
         tree = represent_as_tree(graph)
         priority_lst = sorted(tree.keys(), reverse=True)
-        new_token_lst = []
-        prev_priority = None
         prev_key = None
         higher_nodes = {}
         for key in priority_lst:
             branch = tree[key]
             for node in branch:
-                # print([i.ch for i in node])
                 if not prev_key:
                     # if there is no nodes with higher priority
                     # check if there is variable in this node
@@ -228,7 +225,7 @@ class IntegerCostantsOptimiser(AbstractOptimiser):
                                                   integer_devision=True)
                             left_side, left_sign = [], []
                         if right_side and not [t.ch for t in right_side if t.ch
-                                               in set(ascii_lowercase)]:
+                        in set(ascii_lowercase)]:
                             new_exp = tokens + right_sign + right_side
                             tokens = merge_tokens(*new_exp,
                                                   integer_devision=True)
@@ -266,9 +263,7 @@ class SimplifierOptimiser(AbstractOptimiser):
     # *     a and False -> False
     def process_internal(self, graph):
 
-
         def simplify_sum(node):
-            sign = '+'
             variable_ctrs = {}
             order = []
             for t in node:
@@ -280,7 +275,7 @@ class SimplifierOptimiser(AbstractOptimiser):
                 node = tokenize('+') + node
             for i in range(0, len(node), 2):
                 sign = node[i].ch
-                var = str(node[i+1].ch)
+                var = str(node[i + 1].ch)
                 if sign == '-':
                     variable_ctrs[var] -= 1
                 else:
@@ -311,7 +306,6 @@ class SimplifierOptimiser(AbstractOptimiser):
             return new_node
 
         def simplify_division(node):
-            sign = '*'
             variable_ctrs = {}
             order = []
             for t in node:
@@ -323,7 +317,7 @@ class SimplifierOptimiser(AbstractOptimiser):
                 node = tokenize('*') + node
             for i in range(0, len(node), 2):
                 sign = node[i].ch
-                var = str(node[i+1].ch)
+                var = str(node[i + 1].ch)
                 if sign == '/':
                     variable_ctrs[var] -= 1
                 else:
@@ -333,9 +327,9 @@ class SimplifierOptimiser(AbstractOptimiser):
                 if str(var) != '1':
                     ctr = variable_ctrs[var]
                     if ctr < 0:
-                        new_node += ['/', var]*abs(ctr)
+                        new_node += ['/', var] * abs(ctr)
                     elif ctr > 0:
-                        new_node += ['*', var]*ctr
+                        new_node += ['*', var] * ctr
                     else:
                         pass
             if len(new_node) == 0:
@@ -348,8 +342,8 @@ class SimplifierOptimiser(AbstractOptimiser):
             return new_node
 
         def mul_by_zero(node):
-            for i in range(len(node)-1):
-                ch_1, ch_2 = node[i].ch, node[i+1].ch
+            for i in range(len(node) - 1):
+                ch_1, ch_2 = node[i].ch, node[i + 1].ch
                 if str(ch_1) == '0' and str(ch_2) == '*':
                     new_node = ['0']
                 elif str(ch_1) == '*' and str(ch_2) == '0':
@@ -367,7 +361,7 @@ class SimplifierOptimiser(AbstractOptimiser):
                     node = tokenize('+') + node
                 new_node = []
                 for i in range(0, len(node) - 1, 2):
-                    ch_1, ch_2 = node[i].ch, node[i+1].ch
+                    ch_1, ch_2 = node[i].ch, node[i + 1].ch
                     if str(ch_2) != '0':
                         new_node.append(str(ch_1))
                         new_node.append(str(ch_2))
@@ -382,7 +376,7 @@ class SimplifierOptimiser(AbstractOptimiser):
                     zero_pwr = 2
                 elif zero_pwr == 2:
                     zero_pwr -= 1
-                elif zero_pwr ==1:
+                elif zero_pwr == 1:
                     zero_pwr -= 1
                     new_node += tokenize('1')
                 else:
@@ -405,13 +399,8 @@ class SimplifierOptimiser(AbstractOptimiser):
                 node = add_zero(node)
             return node
 
-        print([i.ch for i in graph])
-        # change graph while prev != current
-        # find unique vars in node and their number
         tree = represent_as_tree(graph)
         priority_lst = sorted(tree.keys(), reverse=True)
-        new_token_lst = []
-        prev_priority = None
         prev_key = None
         higher_nodes = {}
         result = graph
@@ -450,7 +439,6 @@ class SimplifierOptimiser(AbstractOptimiser):
                     for l in used:
                         del higher_nodes[l]
 
-
                     if left_side:
                         # in left side doesn't contain variables
                         new_exp = left_side + left_sign + tokens
@@ -470,13 +458,6 @@ class SimplifierOptimiser(AbstractOptimiser):
                     result += left_side + left_sign + tokens + right_sign + right_side
 
                     pos = result[0].pos
-
-                    # calculate result
-                    # priorities = len({i.priority for i in result})
-                    # if priorities < 3:
-                    #     # if all signs have same priority P, for variables
-                    #     # P = 0 by default
-                    #     result = simplify_with_var(result)
 
                     # expanding new node limits
                     try:
@@ -549,7 +530,7 @@ def test_simplifier_optimiser():
         ('a^0', ['1']),
         ('a-(-(-a))', ['0']),
 
-        # ('a+a+a', ['a3*', '3a*']),  # (*)
+        ('a+a+a', ['a3*', '3a*']),  # (*)
         # ('(a-b)-(a-b)', ['0']),  # (*)
         # ('(a-b)/(a-b)', ['1']),  # (*)
         # ('(a+b)+(a+b)', ['ab+2*', '2ab+*']),  # (*)
@@ -569,16 +550,6 @@ def test_simplifier_optimiser():
             print('Error in case for "{}". Actual "{}", expected {}'
                   .format(case, calc, exps))
 
-
-test_double_negetive()
-test_integer_constant_optimiser()
-test_simplifier_optimiser()
-calc = Calculator('a-(-(-a))', [DoubleNegativeOptimiser()])
-# calc = Calculator('-(-a)', [DoubleNegativeOptimiser()])
-# calc = Calculator('2-a+3', [IntegerCostantsOptimiser()])
-# calc = Calculator('1+(2+2)*a*3', [IntegerCostantsOptimiser()])
-# calc = Calculator('9*a/3+10+3*3', [IntegerCostantsOptimiser()])
-# calc = Calculator('-9*a/4*3/e+d+2-2', [IntegerCostantsOptimiser()])
-# calc = Calculator('a^0', [DoubleNegativeOptimiser(),IntegerCostantsOptimiser(), SimplifierOptimiser()])
-calc.optimise()
-print(str(calc))
+# test_double_negetive()
+# test_integer_constant_optimiser()
+# test_simplifier_optimiser()

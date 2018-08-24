@@ -2,6 +2,7 @@
 from enum import Enum
 from string import ascii_lowercase
 
+
 class Token:
     def __init__(self, ch):
         self.ch = ch
@@ -19,6 +20,7 @@ class Token:
         # self.value = None
         # self.kind = None
         self.calculable = False if self.ch in set(ascii_lowercase) else True
+
 
 def tokenize(expression):
     characters = list(expression)
@@ -50,6 +52,7 @@ def tokenize(expression):
         tokens.append(new_token)
         pos += 1
     return tokens
+
 
 def represent_as_tree(tokens: list) -> dict:
     priority_list = []
@@ -114,6 +117,7 @@ def represent_as_tree(tokens: list) -> dict:
             prev_priority = priority
     return priority_tree
 
+
 def to_postfix(opcodes):
     class Symbol(Enum):
         BREAK_SIGN = '|'
@@ -126,14 +130,20 @@ def to_postfix(opcodes):
         POWER_SIGN = '^'
 
     class Action(Enum):
-        BREAK_SIGN =    {'|': 4, '-': 1, '+': 1, '*': 1, '^': 1, '/': 1, '(': 1, ')': 5}
-        PLUS_SIGN =     {'|': 2, '-': 2, '+': 2, '*': 1, '^': 1, '/': 1, '(': 1, ')': 2}
-        MINUS_SIGN =    {'|': 2, '-': 2, '+': 2, '*': 1, '^': 1, '/': 1, '(': 1, ')': 2}
-        MUL_SIGN =      {'|': 2, '-': 2, '+': 2, '*': 2, '^': 1, '/': 2, '(': 1, ')': 2}
-        POWER_SIGN =    {'|': 2, '-': 2, '+': 2, '*': 2, '^': 1, '/': 2, '(': 1, ')': 2}
-        DIV_SIGN =      {'|': 2, '-': 2, '+': 2, '*': 2, '^': 2, '/': 2, '(': 1, ')': 2}
-        LEFT_BRACKET =  {'|': 5, '-': 1, '+': 1, '*': 1, '^': 1, '/': 1, '(': 1, ')': 3}
-
+        BREAK_SIGN = {'|': 4, '-': 1, '+': 1, '*': 1, '^': 1, '/': 1, '(': 1,
+                      ')': 5}
+        PLUS_SIGN = {'|': 2, '-': 2, '+': 2, '*': 1, '^': 1, '/': 1, '(': 1,
+                     ')': 2}
+        MINUS_SIGN = {'|': 2, '-': 2, '+': 2, '*': 1, '^': 1, '/': 1, '(': 1,
+                      ')': 2}
+        MUL_SIGN = {'|': 2, '-': 2, '+': 2, '*': 2, '^': 1, '/': 2, '(': 1,
+                    ')': 2}
+        POWER_SIGN = {'|': 2, '-': 2, '+': 2, '*': 2, '^': 1, '/': 2, '(': 1,
+                      ')': 2}
+        DIV_SIGN = {'|': 2, '-': 2, '+': 2, '*': 2, '^': 2, '/': 2, '(': 1,
+                    ')': 2}
+        LEFT_BRACKET = {'|': 5, '-': 1, '+': 1, '*': 1, '^': 1, '/': 1, '(': 1,
+                        ')': 3}
 
     opcodes = opcodes + ['|']
     if opcodes[0] == '+':
@@ -166,7 +176,6 @@ def to_postfix(opcodes):
 
 
 class Calculator:
-
     class TokenListDescriptor:
         def __init__(self, name):
             self.name = name
@@ -175,8 +184,6 @@ class Calculator:
             return getattr(instance, self.name, self)
 
         def __set__(self, instance, expression):
-
-
             # if isinstance(expression[0], Token):
             #     new_tokens = expression
             # else:
@@ -192,14 +199,11 @@ class Calculator:
             return getattr(instance, self.name, self)
 
         def __set__(self, instance, tokens):
-
             setattr(instance, self.name, represent_as_tree(tokens))
-    
 
     # Tokens and tree are calculated each time new value is set
     tokens = TokenListDescriptor('__tokens')
     tree = CalcTreeDescriptor('__tree')
-
 
     def __init__(self, opcodes: list, operators=None):
         self.opcodes = opcodes
@@ -207,12 +211,10 @@ class Calculator:
         self.tokens = opcodes
         self.tree = self.tokens
 
-
     def __str__(self) -> str:
 
         lst_postfix = to_postfix(self.opcodes)
         return ''.join(lst_postfix)
-
 
     def optimise(self):
         for operator in self.operators:
@@ -220,7 +222,6 @@ class Calculator:
             self.opcodes = operator.process(self.opcodes)
             self.tokens = self.opcodes
             self.tree = self.tokens
-
 
     def validate(self) -> bool:
 
@@ -261,7 +262,6 @@ class Calculator:
                     prev_priority = token.priority
                     prev_token = token
             return True
-
 
         tree = self.tree
         if not tree:
@@ -338,16 +338,5 @@ def str_test():
             print('Error in case for "{}". Actual "{}", expected {}'
                   .format(case, calc, exp))
 
-
 # validate_test()
 # str_test()
-
-# calc = Calculator('-a+(2+(3+5*4+9))+1').validate()
-# calc = Calculator('-a+((2+1)+(3+9))+1').validate()
-# calc = Calculator('-(a+1)^1+(1+1)').validate()
-# calc = Calculator('s^s').validate()
-# calc = Calculator('k*10-a+2*2+(0*2)+1*2').validate()
-# calc = Calculator('((a+3))')
-# print(calc.tree)
-# calc.validate()
-# print(calc.priority_tree)
