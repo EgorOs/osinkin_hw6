@@ -72,6 +72,15 @@ def represent_as_tree(tokens: list) -> dict:
         # brackets are not balanced
         return {}
 
+    if len(tokens) == 1:
+        # valid one-symbol expression
+        if tokens[0].ch in set(ascii_lowercase) or str(tokens[0].ch).isdigit():
+            priority_tree = {}
+            priority_tree[1] = [tokens]
+            return priority_tree
+        else:
+            return {}
+
     priority_tree = {}
     nodes_init_pos = {}
     prev_pos, prev_priority = None, None
@@ -242,6 +251,8 @@ class Calculator:
             return True
 
         def check_binary_operators(tokens: list) -> bool:
+            if len(tokens) < 3:
+                return False
             prev_priority = None
             prev_token = None
             if tokens[-1].priority not in (0, 4):
@@ -263,19 +274,60 @@ class Calculator:
                     prev_token = token
             return True
 
+        def check_binary_offset(opcodes: list) -> bool:
+            # Ensure that binary operators are placed inbetween operands
+            tokens = tokenize(opcodes)
+            lst = [t.priority for t in tokens if t.priority not in (1, 4) ]
+            prev_priority = lst[0]
+            if prev_priority != 0:
+                return False
+            positioning = [prev_priority]
+            for i in range(1, len(lst)):
+                curr_priority = lst[i]
+                if curr_priority != prev_priority:
+                    positioning.append(curr_priority)
+                prev_priority = curr_priority
+
+            expected = (0,)
+            for p in positioning:
+                if p not in expected:
+                    return False
+                elif expected == (0,):
+                    expected = (2, 3)
+                elif expected == (2, 3):
+                    expected = (0,)
+
+            if expected == (2, 3):
+                return True
+            else:
+                return False
+
+
         tree = self.tree
+        opcodes = self.opcodes
         if not tree:
             return False
+
+        if len(opcodes) == 1:
+            # represent_as_tree returns only valid token
+            # for a single operand scenario
+            return True
+
         for key in tree.keys():
             nodes = tree[key]
             for node in nodes:
-                operation_priority = max(node[0].priority, node[1].priority)
+                # ignore brackets
+                clean_node = [t for t in node if t.priority != 4]
+                operation_priority = max(list({t.priority for t in clean_node}))
                 if operation_priority == 1:
                     if not check_unary_operators(node):
                         return False
                 else:
                     if not check_binary_operators(node):
                         return False
+                    if not check_binary_offset(opcodes):
+                        return False
+        
         return True
 
 
@@ -299,6 +351,15 @@ def validate_test():
         ('^-b', False),
         ('+b/(0+0)', True),
         ('+b/(0)', True),  # or should this case be considered as False?
+        ('1', True),
+        ('-(-a)', True),
+        ('-((-a))', True),
+        ('-(-(-a))', True),
+        ('-(*(-a))', False),
+        ('-((-a))/', False),
+        ('-(-5)', True),
+        ('-(a+b)+c-(-d)', True),
+        ('-(-(a+b)) ', True)
     ]
 
     for case, exp in validate_check_list:
