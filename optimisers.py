@@ -125,41 +125,98 @@ class DoubleNegativeOptimiser(AbstractOptimiser):
 
     def process_internal(self, graph):
         chars = [str(t.ch) for t in graph]
+        # def remove_double_minuses(chars):
+        #     n = len(chars)
+        #     new_opcodes = []
+        #     i = 0
+        #     while True:
+        #         if i >= n:
+        #             break
+        #         if i < n - 4:
+        #             pattern = [*chars[i:i + 3], chars[i + 4]]
+        #             if pattern == ['-', '(', '-', ')']:
+        #                 new_opcodes += ['+', str(chars[i + 3])]
+        #                 i += 5
+        #             elif pattern == ['-', '(', '+', ')']:
+        #                 new_opcodes += ['-', str(chars[i + 3])]
+        #                 i += 5
+        #             else:
+        #                 new_opcodes.append(chars[i])
+        #                 i += 1
 
-        def remove_double_minuses(chars):
-            n = len(chars)
-            new_opcodes = []
-            i = 0
+        #         else:
+        #             new_opcodes.append(chars[i])
+        #             i += 1
+        #     return new_opcodes
+
+        # opt = remove_double_minuses(chars)
+        # new_opcodes = None
+        # while True:
+        #     if opt == new_opcodes:
+        #         break
+        #     if new_opcodes:
+        #         opt = new_opcodes
+        #         new_opcodes = remove_double_minuses(opt)
+        #     else:
+        #         new_opcodes = remove_double_minuses(opt)
+        def select_brackets(str_repr: str):
+            inner = ''
+            processed = ''
+            sign_queue = ['+']
+            ctr = None
             while True:
-                if i >= n:
-                    break
-                if i < n - 4:
-                    pattern = [*chars[i:i + 3], chars[i + 4]]
-                    if pattern == ['-', '(', '-', ')']:
-                        new_opcodes += ['+', str(chars[i + 3])]
-                        i += 5
-                    elif pattern == ['-', '(', '+', ')']:
-                        new_opcodes += ['-', str(chars[i + 3])]
-                        i += 5
-                    else:
-                        new_opcodes.append(chars[i])
-                        i += 1
+                try:
+                    sym, str_repr = str_repr[0], str_repr[1::]
+                    if sym in '+-*/^' and ctr is None:
+                        sign_queue.append(sym)
+                    elif sym == '(' and ctr is None:
+                        ctr = 1
+                    elif sym == '(':
+                        ctr += 1
+                    elif sym == ')':
+                        ctr -= 1
+                    
+                    if ctr is not None and ctr == 0:
+                        break
+                    if ctr is not None and ctr > 0:
+                        inner += sym
+                except IndexError:
+                    return processed, '', processed, str_repr
+                processed += sym
+            inner = inner[1::]
+            return processed, sign_queue[-1], inner, str_repr
 
-                else:
-                    new_opcodes.append(chars[i])
-                    i += 1
-            return new_opcodes
+        def remove_dbl_neg(str_repr):
+            processed, sign, inner, cut_str = select_brackets(str_repr)
+            plus = ''
+            left = processed.replace('{}({}'.format(sign, inner), '', 1)
+            if left:
+                left += '+'
+                plus = '+'
+            tokens = tokenize(inner)
+            if sign == '-' and inner.startswith('-(') and inner.endswith(')'):
+                str_repr = left + inner[2:len(inner) - 1] + cut_str
+            elif len(tokens) == 2 and tokens[0].ch == '-':
+                str_repr = str_repr.replace('-({})'.format(inner), plus + inner[1], 1)         
+            elif '(' not in inner:
+                # sqr brackets added to avoid processing same brackets twice
+                str_repr = str_repr.replace('(', '[', 1).replace(')', ']', 1)
+            return str_repr
 
-        opt = remove_double_minuses(chars)
-        new_opcodes = None
+        str_repr = ''.join(chars)
+        if '(' not in str_repr:
+            # nothing to simplify
+            return chars
+
         while True:
-            if opt == new_opcodes:
+            new_repr = remove_dbl_neg(str_repr)
+            if new_repr == str_repr:
                 break
-            if new_opcodes:
-                opt = new_opcodes
-                new_opcodes = remove_double_minuses(opt)
-            else:
-                new_opcodes = remove_double_minuses(opt)
+            str_repr = new_repr
+        
+        # remove sqr brackets and fix signs            
+        str_repr = str_repr.replace('[', '(').replace(']', ')').replace('+-', '-')
+        new_opcodes = list(str_repr)
         return new_opcodes
 
 
@@ -175,6 +232,7 @@ class IntegerCostantsOptimiser(AbstractOptimiser):
         for key in priority_lst:
             branch = tree[key]
             for node in branch:
+                # print([i.ch for i in node], 'node')
                 if not prev_key:
                     # if there is no nodes with higher priority
                     # check if there is variable in this node
@@ -230,7 +288,7 @@ class IntegerCostantsOptimiser(AbstractOptimiser):
                             tokens = merge_tokens(*new_exp,
                                                   integer_devision=True)
                             right_side, right_sign = [], []
-
+                    # print([i.ch for i in right_side], '++')
                     result += left_side + left_sign + tokens + right_sign + right_side
                     pos = result[0].pos
 
@@ -262,7 +320,6 @@ class SimplifierOptimiser(AbstractOptimiser):
     # *     a or True -> True
     # *     a and False -> False
     def process_internal(self, graph):
-
         def simplify_sum(node):
             variable_ctrs = {}
             order = []
@@ -528,7 +585,7 @@ def test_simplifier_optimiser():
         ('a+(b-b)', ['a']),
         ('a+(7-6-1)', ['a']),
         ('a^0', ['1']),
-        ('a-(-(-a))', ['0']),
+        ('a-(-(-a))', ['0']),# ???
 
         ('a+a+a', ['a3*', '3a*']),  # (*)
         # ('(a-b)-(a-b)', ['0']),  # (*)
@@ -553,3 +610,48 @@ def test_simplifier_optimiser():
 # test_double_negetive()
 # test_integer_constant_optimiser()
 # test_simplifier_optimiser()
+
+def valid_integer_constant_optimiser_test():
+    integer_constant_optimiser_tests = [
+            (['1'], ['1']),
+            (['1', '+', '2'], ['3']),
+            (['1', '-', '2'], ['1-']),
+            (['2', '*', '2'], ['4']),
+            (['2', '/', '2'], ['1']),
+            (['2', '^', '10'], ['1024']),
+            (['a', '+', '2', '*', '4'], ['a8+', '8a+']),
+
+            (['2', '+', 'a', '+', '3'], ['5a+', 'a5+']),  # (*)
+            (list('-(-a)'), ['a']),
+            (list('-(-(-(-a)))'), ['a']),
+            (list('-(-5)'), ['5']),
+            (list('-(a+b)+c-(-d)'), ['a-b+c+d+']),
+            (list('-(-(a+b))'), ['ab+'])
+        ]
+
+    for case, exp in integer_constant_optimiser_tests:
+        calc = Calculator(case, [DoubleNegativeOptimiser(), IntegerCostantsOptimiser()])
+
+        try:
+            if calc.validate():
+                calc.optimise()
+
+                strcase = ''.join(case)
+                print(str(calc))
+                res_bool = str(calc) in exp
+                res_str = 'True' if res_bool else 'False'
+                
+                print(strcase + ' | ' + str(res_bool) + ' | ' + res_str)
+            else:
+                print('{} is not valid'.format(case))
+        except Exception as e:
+            raise e
+            print(strcase, 'executed with exception')
+
+# valid_integer_constant_optimiser_test()
+
+# calc = Calculator('-(-(a+b))', [DoubleNegativeOptimiser()])
+# calc = Calculator('a-(-(-a))', [DoubleNegativeOptimiser(), IntegerCostantsOptimiser(), SimplifierOptimiser()])
+# calc.validate()
+# calc.optimise()
+# print(calc)

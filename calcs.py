@@ -180,7 +180,7 @@ def to_postfix(opcodes):
             elif action_choice == 4:
                 break
             else:
-                raise Exception('invalid input string')
+                raise Exception('invalid input string', opcodes)
     return lst_postfix
 
 
@@ -215,6 +215,8 @@ class Calculator:
     tree = CalcTreeDescriptor('__tree')
 
     def __init__(self, opcodes: list, operators=None):
+        if isinstance(opcodes, str):
+            opcodes = list(opcodes)
         self.opcodes = opcodes
         self.operators = operators if operators is not None else []
         self.tokens = opcodes
@@ -359,7 +361,7 @@ def validate_test():
         ('-((-a))/', False),
         ('-(-5)', True),
         ('-(a+b)+c-(-d)', True),
-        ('-(-(a+b)) ', True)
+        ('-(-(a+b))', True)
     ]
 
     for case, exp in validate_check_list:
@@ -399,5 +401,5 @@ def str_test():
             print('Error in case for "{}". Actual "{}", expected {}'
                   .format(case, calc, exp))
 
-# validate_test()
+validate_test()
 # str_test()
