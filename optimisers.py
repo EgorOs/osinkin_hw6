@@ -125,40 +125,6 @@ class DoubleNegativeOptimiser(AbstractOptimiser):
 
     def process_internal(self, graph):
         chars = [str(t.ch) for t in graph]
-        # def remove_double_minuses(chars):
-        #     n = len(chars)
-        #     new_opcodes = []
-        #     i = 0
-        #     while True:
-        #         if i >= n:
-        #             break
-        #         if i < n - 4:
-        #             pattern = [*chars[i:i + 3], chars[i + 4]]
-        #             if pattern == ['-', '(', '-', ')']:
-        #                 new_opcodes += ['+', str(chars[i + 3])]
-        #                 i += 5
-        #             elif pattern == ['-', '(', '+', ')']:
-        #                 new_opcodes += ['-', str(chars[i + 3])]
-        #                 i += 5
-        #             else:
-        #                 new_opcodes.append(chars[i])
-        #                 i += 1
-
-        #         else:
-        #             new_opcodes.append(chars[i])
-        #             i += 1
-        #     return new_opcodes
-
-        # opt = remove_double_minuses(chars)
-        # new_opcodes = None
-        # while True:
-        #     if opt == new_opcodes:
-        #         break
-        #     if new_opcodes:
-        #         opt = new_opcodes
-        #         new_opcodes = remove_double_minuses(opt)
-        #     else:
-        #         new_opcodes = remove_double_minuses(opt)
         def select_brackets(str_repr: str):
             inner = ''
             processed = ''
@@ -232,7 +198,6 @@ class IntegerCostantsOptimiser(AbstractOptimiser):
         for key in priority_lst:
             branch = tree[key]
             for node in branch:
-                # print([i.ch for i in node], 'node')
                 if not prev_key:
                     # if there is no nodes with higher priority
                     # check if there is variable in this node
@@ -288,7 +253,6 @@ class IntegerCostantsOptimiser(AbstractOptimiser):
                             tokens = merge_tokens(*new_exp,
                                                   integer_devision=True)
                             right_side, right_sign = [], []
-                    # print([i.ch for i in right_side], '++')
                     result += left_side + left_sign + tokens + right_sign + right_side
                     pos = result[0].pos
 
